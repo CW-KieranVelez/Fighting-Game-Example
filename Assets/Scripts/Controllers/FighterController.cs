@@ -36,6 +36,7 @@ namespace FightTest.Controllers
         [SerializeField] private ColliderSet _airLightColliders;
         [SerializeField] private ColliderSet _airHeavyColliders;
         [SerializeField] private ColliderSet _airThrowColliders;
+        [SerializeField] private ColliderSet _backDashColliders;
         [SerializeField] private LayerMask _hitLayer;
 
         [Header("Ground Detection")]
@@ -67,6 +68,7 @@ namespace FightTest.Controllers
         private bool _landKnockedDown;
 
         private AttackState _lightAttack;
+        private BackDashState _backDash;
         private Rigidbody2D _rb;
         private StateMachine.StateMachine _root;
         private SprintState _sprint;
@@ -82,9 +84,21 @@ namespace FightTest.Controllers
         {
             get
             {
-                var s = _grounded.SubMachine.CurrentState;
-                return s == _lightAttack || s == _heavyAttack || s == _throwAttack ||
-                       s == _crouchLightAttack || s == _crouchHeavyAttack;
+                var state = _grounded.SubMachine.CurrentState;
+                return state == _lightAttack ||
+                       state == _heavyAttack ||
+                       state == _throwAttack ||
+                       state == _crouchLightAttack ||
+                       state == _crouchHeavyAttack;
+            }
+        }
+
+        private bool IsHitStunned
+        {
+            get
+            {
+                var state = _grounded.SubMachine.CurrentState;
+                return state == _hitStun;
             }
         }
 
@@ -123,8 +137,9 @@ namespace FightTest.Controllers
             _frame = _inputProvider?.GetFrame() ?? default;
             _walk.MoveX = _frame.MoveX;
             _walk.Speed = IsWalkingBack ? _stats.WalkBackSpeed : _stats.MoveSpeed;
-            _crouchWalk.MoveX = _frame.MoveX;
+            _crouchWalk.MoveX = IsWalkingBack ? 0f : _frame.MoveX;
             _sprint.MoveX = _frame.MoveX;
+            _backDash.MoveX = _frame.MoveX;
 
             _root.Tick();
         }
@@ -145,7 +160,6 @@ namespace FightTest.Controllers
                 return;
             }
 
-            _health.TakeDamage(data.Damage);
             _mover.ApplyKnockback(_facing.Sign, data.Knockback);
 
             if (_root.CurrentState == _jump)
@@ -159,7 +173,7 @@ namespace FightTest.Controllers
             var canBlock = IsWalkingBack && current switch
             {
                 _ when current == _walk => data.Height == AttackHeight.Mid || data.Height == AttackHeight.Air,
-                _ when current == _crouchWalk => data.Height == AttackHeight.Mid || data.Height == AttackHeight.Low,
+                _ when current == _crouch => data.Height == AttackHeight.Mid || data.Height == AttackHeight.Low,
                 _ => false
             };
 
@@ -172,6 +186,7 @@ namespace FightTest.Controllers
             {
                 _hitStun.Configure(data.EnemyHitStopFrames);
                 _grounded.SubMachine.ChangeState(_hitStun);
+                _health.TakeDamage(data.Damage);
             }
         }
 
@@ -214,6 +229,7 @@ namespace FightTest.Controllers
             _idle = new IdleState(_mover, _idleColliders);
             _walk = new WalkState(_mover, _stats.MoveSpeed, _walkColliders);
             _sprint = new SprintState(_mover, _stats.SprintSpeed, _sprintColliders);
+            _backDash = new BackDashState(_mover, _stats.BackDashSpeed, _stats.BackDashDuration, _backDashColliders);
             _crouch = new CrouchState(_mover, _crouchColliders);
             _crouchWalk = new CrouchWalkState(_mover, _stats.MoveSpeed, _crouchWalkColliders);
             _block = new BlockState(_mover, _blockColliders);
@@ -222,19 +238,20 @@ namespace FightTest.Controllers
             _knockedDown = new KnockedDownState(_knockedDownColliders);
             _airKnockedDown = new AirKnockedDownState(_airKnockedDownColliders);
             _throwAttack = new ThrowAttackState(_stats.ThrowAttack, _throwColliders, _hitLayer, _facing, gameObject);
-            _airThrowAttack = new ThrowAttackState(_stats.ThrowAttack, _airThrowColliders, _hitLayer, _facing, gameObject);
+            _airThrowAttack =
+                new ThrowAttackState(_stats.ThrowAttack, _airThrowColliders, _hitLayer, _facing, gameObject);
             _lightAttack = new AttackState(
-                _stats.LightAttack, _lightColliders, _hitLayer, _facing, gameObject, "LightAttack");
+                _stats.LightAttack, _lightColliders, _hitLayer, _facing, gameObject, "LightAttack", _mover);
             _heavyAttack = new AttackState(
-                _stats.HeavyAttack, _heavyColliders, _hitLayer, _facing, gameObject, "HeavyAttack");
+                _stats.HeavyAttack, _heavyColliders, _hitLayer, _facing, gameObject, "HeavyAttack", _mover);
             _crouchLightAttack = new AttackState(
-                _stats.CrouchLightAttack, _crouchLightColliders, _hitLayer, _facing, gameObject, "CrouchLight");
+                _stats.CrouchLightAttack, _crouchLightColliders, _hitLayer, _facing, gameObject, "CrouchLight", _mover);
             _crouchHeavyAttack = new AttackState(
-                _stats.CrouchHeavyAttack, _crouchHeavyColliders, _hitLayer, _facing, gameObject, "CrouchHeavy");
+                _stats.CrouchHeavyAttack, _crouchHeavyColliders, _hitLayer, _facing, gameObject, "CrouchHeavy", _mover);
             _airLightAttack = new AttackState(
-                _stats.AirLightAttack, _airLightColliders, _hitLayer, _facing, gameObject, "AirLight");
+                _stats.AirLightAttack, _airLightColliders, _hitLayer, _facing, gameObject, "AirLight", _mover);
             _airHeavyAttack = new AttackState(
-                _stats.AirHeavyAttack, _airHeavyColliders, _hitLayer, _facing, gameObject, "AirHeavy");
+                _stats.AirHeavyAttack, _airHeavyColliders, _hitLayer, _facing, gameObject, "AirHeavy", _mover);
 
             _jumpRise = new JumpRiseState(_jumpRiseColliders);
             _airborne = new AirborneState(_airborneColliders);
@@ -247,7 +264,7 @@ namespace FightTest.Controllers
         {
             _root.RegisterTransitions(
                 _grounded,
-                new Transition(() => IsGrounded && _frame.Jump && !IsGroundSubstateAttack, () =>
+                new Transition(() => IsGrounded && _frame.Jump && !IsGroundSubstateAttack && !IsHitStunned, () =>
                 {
                     _jump.Configure(_frame.MoveX * _stats.MoveSpeed);
                     return _jump;
@@ -278,6 +295,7 @@ namespace FightTest.Controllers
                     _landKnockedDown = false;
                     return true;
                 }, () => _knockedDown),
+                new Transition(() => _frame.BackDash && IsWalkingBack, () => _backDash),
                 new Transition(
                     () => _frame.MoveX != 0f && _frame is { Duck: false, LightAttack: false, HeavyAttack: false },
                     () => _walk),
@@ -289,10 +307,11 @@ namespace FightTest.Controllers
 
             groundSm.RegisterTransitions(
                 _walk,
+                new Transition(() => _frame.BackDash && IsWalkingBack, () => _backDash),
                 new Transition(() => _frame.Sprint && !_frame.Duck && IsMovingForward, () => _sprint),
                 new Transition(() => _frame is { MoveX: 0f, Duck: false }, () => _idle),
-                new Transition(() => _frame.Duck && _frame.MoveX == 0f, () => _crouch),
-                new Transition(() => _frame.Duck && _frame.MoveX != 0f, () => _crouchWalk),
+                new Transition(() => _frame.Duck && (_frame.MoveX == 0f || IsWalkingBack), () => _crouch),
+                new Transition(() => _frame.Duck && IsMovingForward, () => _crouchWalk),
                 new Transition(() => _frame.LightAttack, () => _lightAttack),
                 new Transition(() => _frame.HeavyAttack, () => _heavyAttack),
                 new Transition(() => _frame.Throw, () => _throwAttack)
@@ -311,7 +330,7 @@ namespace FightTest.Controllers
                 _crouch,
                 new Transition(() => _frame is { Duck: false, MoveX: 0f }, () => _idle),
                 new Transition(() => !_frame.Duck && _frame.MoveX != 0f, () => _walk),
-                new Transition(() => _frame.Duck && _frame.MoveX != 0f, () => _crouchWalk),
+                new Transition(() => _frame.Duck && IsMovingForward, () => _crouchWalk),
                 new Transition(() => _frame.LightAttack, () => _crouchLightAttack),
                 new Transition(() => _frame.HeavyAttack, () => _crouchHeavyAttack)
             );
@@ -320,9 +339,14 @@ namespace FightTest.Controllers
                 _crouchWalk,
                 new Transition(() => !_frame.Duck && _frame.MoveX == 0f, () => _idle),
                 new Transition(() => !_frame.Duck && _frame.MoveX != 0f, () => _walk),
-                new Transition(() => _frame.Duck && _frame.MoveX == 0f, () => _crouch),
+                new Transition(() => _frame.Duck && (_frame.MoveX == 0f || IsWalkingBack), () => _crouch),
                 new Transition(() => _frame.LightAttack, () => _crouchLightAttack),
                 new Transition(() => _frame.HeavyAttack, () => _crouchHeavyAttack)
+            );
+
+            groundSm.RegisterTransitions(
+                _backDash,
+                new Transition(() => _backDash.IsFinished, () => _idle)
             );
 
             groundSm.RegisterTransitions(

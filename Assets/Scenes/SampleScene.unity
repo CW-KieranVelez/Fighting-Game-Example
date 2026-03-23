@@ -742,7 +742,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 3878497683875837441, guid: 35f79df692fa64b48a59a53bbf9b4915, type: 3}
       propertyPath: _scheme
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 3878497683875837441, guid: 35f79df692fa64b48a59a53bbf9b4915, type: 3}
       propertyPath: _gamepadIndex

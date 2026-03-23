@@ -29,6 +29,7 @@ namespace FightTest.Input
         private Vector2 _move;
         private float _prevMoveX;
         private bool _sprinting;
+        private bool _backDash;
         private InputUser _user;
 
         private void Awake()
@@ -69,7 +70,9 @@ namespace FightTest.Input
                 _heavyBuffer--;
             }
 
-            return new InputFrame(_move.x, _move.y, _lightBuffer > 0, _heavyBuffer > 0, _sprinting);
+            var backDash = _backDash;
+            _backDash = false;
+            return new InputFrame(_move.x, _move.y, _lightBuffer > 0, _heavyBuffer > 0, _sprinting, backDash);
         }
 
         public void OnMoveDirection(InputAction.CallbackContext ctx)
@@ -110,6 +113,7 @@ namespace FightTest.Input
                 if (Mathf.Approximately(dir, _lastTapDir) && Time.time - _lastTapTime <= DoubleTapWindow)
                 {
                     _sprinting = true;
+                    _backDash = true;
                 }
 
                 _lastTapTime = Time.time;

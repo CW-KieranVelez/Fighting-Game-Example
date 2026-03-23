@@ -14,9 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   Height: 0
   StartupFrames: 6
-  ActiveFrames: 3
+  ActiveFrames: 2
   RecoveryFrames: 13
-  EnemyHitStopFrames: 18
+  EnemyHitStopFrames: 60
+  LungeForce: 2
+  LungeFrame: 0
   Knockback: 2
   KnockbackY: 0
   Launches: 0

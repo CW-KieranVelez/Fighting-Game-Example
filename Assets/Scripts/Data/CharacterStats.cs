@@ -9,6 +9,8 @@ namespace FightTest.Data
         public float MoveSpeed = 4f;
         public float WalkBackSpeed = 2.5f;
         public float SprintSpeed = 8f;
+        public float BackDashSpeed = 10f;
+        public float BackDashDuration = 0.2f;
         public float JumpForce = 10f;
 
         [Header("Health")]

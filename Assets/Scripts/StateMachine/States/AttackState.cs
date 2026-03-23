@@ -12,6 +12,7 @@ namespace FightTest.States
         private readonly FacingSystem _facing;
         private readonly LayerMask _hitLayer;
         private readonly string _label;
+        private readonly CharacterMover _mover;
         private readonly Collider2D[] _overlapBuffer = new Collider2D[8];
         private readonly GameObject _self;
         private bool _hasHitThisSwing;
@@ -24,7 +25,8 @@ namespace FightTest.States
             LayerMask hitLayer,
             FacingSystem facing,
             GameObject self,
-            string label)
+            string label,
+            CharacterMover mover = null)
         {
             _data = data;
             _colliders = colliders;
@@ -32,6 +34,7 @@ namespace FightTest.States
             _facing = facing;
             _self = self;
             _label = label;
+            _mover = mover;
         }
 
         public bool IsFinished { get; private set; }
@@ -41,11 +44,14 @@ namespace FightTest.States
         private float RecoveryDuration => _data.RecoveryFrames / 60f;
         private float TotalDuration => StartupDuration + ActiveDuration + RecoveryDuration;
 
+        private bool _hasLunged;
+        
         public void Enter()
         {
             IsFinished = false;
             _hasHitThisSwing = false;
             _wasInActive = false;
+            _hasLunged = false;
             _timer = 0f;
             _colliders.EnableSet();
         }
@@ -53,6 +59,15 @@ namespace FightTest.States
         public void Tick()
         {
             _timer += Time.deltaTime;
+
+            if (_mover != null && _data.LungeForce > 0f)
+            {
+                if (!_hasLunged && _timer >= _data.LungeFrame / 60f)
+                {
+                    _mover.ApplyKnockback(_facing.Sign * -1, _data.LungeForce);
+                    _hasLunged = true;
+                }
+            }
 
             var inActive = _timer >= StartupDuration && _timer < StartupDuration + ActiveDuration;
 
