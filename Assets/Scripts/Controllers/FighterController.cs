@@ -36,7 +36,7 @@ namespace FightTest.Controllers
         [SerializeField] private ColliderSet _airLightColliders;
         [SerializeField] private ColliderSet _airHeavyColliders;
         [SerializeField] private ColliderSet _airThrowColliders;
-        [SerializeField] private ColliderSet _backDashColliders;
+        [SerializeField] private ColliderSet _dashColliders;
         [SerializeField] private LayerMask _hitLayer;
 
         [Header("Ground Detection")]
@@ -50,7 +50,7 @@ namespace FightTest.Controllers
         private AirKnockedDownState _airKnockedDown;
         private AttackState _airLightAttack;
         private ThrowAttackState _airThrowAttack;
-        private BackDashState _backDash;
+        private DashState _dash;
         private BlockState _block;
         private CrouchState _crouch;
         private AttackState _crouchHeavyAttack;
@@ -134,7 +134,7 @@ namespace FightTest.Controllers
             _walk.Speed = IsWalkingBack ? _stats.WalkBackSpeed : _stats.MoveSpeed;
             _crouchWalk.MoveX = IsWalkingBack ? 0f : _frame.MoveX;
             _sprint.MoveX = _frame.MoveX;
-            _backDash.MoveX = _frame.MoveX;
+            _dash.MoveX = _frame.MoveX;
 
             _root.Tick();
         }
@@ -218,7 +218,7 @@ namespace FightTest.Controllers
             _idle = new IdleState(_mover, _idleColliders);
             _walk = new WalkState(_mover, _stats.MoveSpeed, _walkColliders);
             _sprint = new SprintState(_mover, _stats.SprintSpeed, _sprintColliders);
-            _backDash = new BackDashState(_mover, _stats.BackDashSpeed, _stats.BackDashDuration, _backDashColliders);
+            _dash = new DashState(_mover, _stats.BackDashSpeed, _stats.BackDashDuration, _dashColliders);
             _crouch = new CrouchState(_mover, _crouchColliders);
             _crouchWalk = new CrouchWalkState(_mover, _stats.MoveSpeed, _crouchWalkColliders);
             _block = new BlockState(_mover, _blockColliders);
@@ -227,20 +227,13 @@ namespace FightTest.Controllers
             _knockedDown = new KnockedDownState(_knockedDownColliders);
             _airKnockedDown = new AirKnockedDownState(_airKnockedDownColliders);
             _throwAttack = new ThrowAttackState(_stats.ThrowAttack, _throwColliders, _hitLayer, _facing, gameObject);
-            _airThrowAttack =
-                new ThrowAttackState(_stats.ThrowAttack, _airThrowColliders, _hitLayer, _facing, gameObject);
-            _lightAttack = new AttackState(
-                _stats.LightAttack, _lightColliders, _hitLayer, _facing, gameObject, "LightAttack", _mover);
-            _heavyAttack = new AttackState(
-                _stats.HeavyAttack, _heavyColliders, _hitLayer, _facing, gameObject, "HeavyAttack", _mover);
-            _crouchLightAttack = new AttackState(
-                _stats.CrouchLightAttack, _crouchLightColliders, _hitLayer, _facing, gameObject, "CrouchLight", _mover);
-            _crouchHeavyAttack = new AttackState(
-                _stats.CrouchHeavyAttack, _crouchHeavyColliders, _hitLayer, _facing, gameObject, "CrouchHeavy", _mover);
-            _airLightAttack = new AttackState(
-                _stats.AirLightAttack, _airLightColliders, _hitLayer, _facing, gameObject, "AirLight", _mover);
-            _airHeavyAttack = new AttackState(
-                _stats.AirHeavyAttack, _airHeavyColliders, _hitLayer, _facing, gameObject, "AirHeavy", _mover);
+            _airThrowAttack = new ThrowAttackState(_stats.ThrowAttack, _airThrowColliders, _hitLayer, _facing, gameObject);
+            _lightAttack = new AttackState(_stats.LightAttack, _lightColliders, _hitLayer, _facing, gameObject, "LightAttack", _mover);
+            _heavyAttack = new AttackState(_stats.HeavyAttack, _heavyColliders, _hitLayer, _facing, gameObject, "HeavyAttack", _mover);
+            _crouchLightAttack = new AttackState(_stats.CrouchLightAttack, _crouchLightColliders, _hitLayer, _facing, gameObject, "CrouchLight", _mover);
+            _crouchHeavyAttack = new AttackState(_stats.CrouchHeavyAttack, _crouchHeavyColliders, _hitLayer, _facing, gameObject, "CrouchHeavy", _mover);
+            _airLightAttack = new AttackState(_stats.AirLightAttack, _airLightColliders, _hitLayer, _facing, gameObject, "AirLight", _mover);
+            _airHeavyAttack = new AttackState(_stats.AirHeavyAttack, _airHeavyColliders, _hitLayer, _facing, gameObject, "AirHeavy", _mover);
 
             _jumpRise = new JumpRiseState(_jumpRiseColliders);
             _airborne = new AirborneState(_airborneColliders);
@@ -293,7 +286,7 @@ namespace FightTest.Controllers
                     _landKnockedDown = false;
                     return true;
                 }, () => _knockedDown),
-                new Transition(() => _frame.BackDash && IsWalkingBack, () => _backDash),
+                new Transition(() => _frame.BackDash && IsWalkingBack, () => _dash),
                 new Transition(
                     () => _frame.MoveX != 0f && _frame is { Duck: false, LightAttack: false, HeavyAttack: false },
                     () => _walk),
@@ -305,7 +298,7 @@ namespace FightTest.Controllers
 
             groundSm.RegisterTransitions(
                 _walk,
-                new Transition(() => _frame.BackDash && IsWalkingBack, () => _backDash),
+                new Transition(() => _frame.BackDash && IsWalkingBack, () => _dash),
                 new Transition(() => _frame.Sprint && !_frame.Duck && IsMovingForward, () => _sprint),
                 new Transition(() => _frame is { MoveX: 0f, Duck: false }, () => _idle),
                 new Transition(() => _frame.Duck && (_frame.MoveX == 0f || IsWalkingBack), () => _crouch),
@@ -343,8 +336,8 @@ namespace FightTest.Controllers
             );
 
             groundSm.RegisterTransitions(
-                _backDash,
-                new Transition(() => _backDash.IsFinished, () => _idle)
+                _dash,
+                new Transition(() => _dash.IsFinished, () => _idle)
             );
 
             groundSm.RegisterTransitions(

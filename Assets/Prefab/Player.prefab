@@ -3094,7 +3094,7 @@ MonoBehaviour:
   _airLightColliders: {fileID: 2393212357526448242}
   _airHeavyColliders: {fileID: 4385385065787302165}
   _airThrowColliders: {fileID: 428837998195986292}
-  _backDashColliders: {fileID: 1052841986073794357}
+  _dashColliders: {fileID: 1052841986073794357}
   _hitLayer:
     serializedVersion: 2
     m_Bits: 64
