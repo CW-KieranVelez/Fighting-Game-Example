@@ -6,39 +6,29 @@ namespace FightTest.States
     public sealed class HitStunState : IState
     {
         private readonly ColliderSet _colliders;
-        private int _remainingTicks;
+        private readonly HitStunTimer _timer;
 
-        public HitStunState(ColliderSet colliders)
+        public HitStunState(ColliderSet colliders, HitStunTimer timer)
         {
             _colliders = colliders;
+            _timer = timer;
         }
 
-        public bool IsFinished { get; private set; }
+        public bool IsFinished => _timer.IsFinished;
 
         public void Enter()
         {
-            IsFinished = false;
             _colliders.EnableSet();
         }
 
         public void Tick()
         {
-            _remainingTicks--;
-            if (_remainingTicks <= 0)
-            {
-                IsFinished = true;
-            }
+            _timer.Tick();
         }
 
         public void Exit()
         {
             _colliders.DisableSet();
-            IsFinished = false;
-        }
-
-        public void Configure(int ticks)
-        {
-            _remainingTicks = ticks;
         }
     }
 }

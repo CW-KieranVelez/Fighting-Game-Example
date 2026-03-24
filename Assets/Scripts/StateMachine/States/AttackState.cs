@@ -45,7 +45,7 @@ namespace FightTest.States
         private float TotalDuration => StartupDuration + ActiveDuration + RecoveryDuration;
 
         private bool _hasLunged;
-        
+
         public void Enter()
         {
             IsFinished = false;
@@ -60,11 +60,11 @@ namespace FightTest.States
         {
             _timer += Time.deltaTime;
 
-            if (_mover != null && _data.LungeForce > 0f)
+            if (_mover != null && _data.LungeForce.magnitude > 0f)
             {
                 if (!_hasLunged && _timer >= _data.LungeFrame / 60f)
                 {
-                    _mover.ApplyKnockback(_facing.Sign * -1, _data.LungeForce);
+                    _mover.AddForce(new Vector2(_facing.Sign * _data.LungeForce.x, _data.LungeForce.y));
                     _hasLunged = true;
                 }
             }

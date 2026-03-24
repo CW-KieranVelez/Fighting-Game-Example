@@ -30,7 +30,6 @@ namespace FightTest.States
 
         public void Exit()
         {
-            _mover.Stop();
             _colliders.DisableSet();
         }
     }

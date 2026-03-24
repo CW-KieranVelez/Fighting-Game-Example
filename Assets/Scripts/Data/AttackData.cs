@@ -23,12 +23,11 @@ namespace FightTest.Data
         public int EnemyHitStopFrames = 4;
 
         [Header("Lunge")]
-        public float LungeForce;
+        public Vector2 LungeForce;
         public int LungeFrame;
 
         [Header("Knockback")]
-        public float Knockback = 2;
-        public float KnockbackY;
+        public Vector2 Knockback;
         public bool Launches;
 
         [Header("Damage")]

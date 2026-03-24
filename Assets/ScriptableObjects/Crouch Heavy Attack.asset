@@ -13,11 +13,12 @@ MonoBehaviour:
   m_Name: Crouch Heavy Attack
   m_EditorClassIdentifier: 
   Height: 1
-  StartupFrames: 10
-  ActiveFrames: 3
+  StartupFrames: 16
+  ActiveFrames: 2
   RecoveryFrames: 18
-  EnemyHitStopFrames: 20
-  Knockback: 6
-  KnockbackY: 6
+  EnemyHitStopFrames: 25
+  LungeForce: {x: 0, y: 0}
+  LungeFrame: 0
+  Knockback: {x: 7, y: 5}
   Launches: 1
   Damage: 20

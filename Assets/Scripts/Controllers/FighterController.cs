@@ -42,11 +42,15 @@ namespace FightTest.Controllers
         [Header("Ground Detection")]
         [SerializeField] private GroundDetector _groundDetector;
 
+        private AirbornState _airborn;
+
         private AirborneState _airborne;
         private AttackState _airHeavyAttack;
         private HitStunState _airHitStun;
         private AirKnockedDownState _airKnockedDown;
         private AttackState _airLightAttack;
+        private ThrowAttackState _airThrowAttack;
+        private BackDashState _backDash;
         private BlockState _block;
         private CrouchState _crouch;
         private AttackState _crouchHeavyAttack;
@@ -54,26 +58,24 @@ namespace FightTest.Controllers
         private CrouchWalkState _crouchWalk;
         private InputFrame _frame;
 
-        private GroundedState _grounded;
+        private GroundState _ground;
         private CharacterHealth _health;
         private AttackState _heavyAttack;
         private HitStunState _hitStun;
+        private HitStunTimer _hitStunTimer;
         private IdleState _idle;
 
         private IInputProvider _inputProvider;
-        private JumpState _jump;
         private JumpRiseState _jumpRise;
         private KnockedDownState _knockedDown;
 
         private bool _landKnockedDown;
 
         private AttackState _lightAttack;
-        private BackDashState _backDash;
         private Rigidbody2D _rb;
         private StateMachine.StateMachine _root;
         private SprintState _sprint;
         private ThrowAttackState _throwAttack;
-        private ThrowAttackState _airThrowAttack;
         private WalkState _walk;
 
         private bool IsGrounded => _groundDetector != null && _groundDetector.IsGrounded;
@@ -84,7 +86,7 @@ namespace FightTest.Controllers
         {
             get
             {
-                var state = _grounded.SubMachine.CurrentState;
+                var state = _ground.SubMachine.CurrentState;
                 return state == _lightAttack ||
                        state == _heavyAttack ||
                        state == _throwAttack ||
@@ -93,27 +95,20 @@ namespace FightTest.Controllers
             }
         }
 
-        private bool IsHitStunned
-        {
-            get
-            {
-                var state = _grounded.SubMachine.CurrentState;
-                return state == _hitStun;
-            }
-        }
+        private bool IsHitStunned => _ground.SubMachine.CurrentState == _hitStun;
 
         private bool IsInvulnerable
         {
             get
             {
-                if (_root.CurrentState == _grounded)
+                if (_root.CurrentState == _ground)
                 {
-                    return _grounded.SubMachine.CurrentState == _knockedDown;
+                    return _ground.SubMachine.CurrentState == _knockedDown;
                 }
 
-                if (_root.CurrentState == _jump)
+                if (_root.CurrentState == _airborn)
                 {
-                    return _jump.SubMachine.CurrentState == _airKnockedDown;
+                    return _airborn.SubMachine.CurrentState == _airKnockedDown;
                 }
 
                 return false;
@@ -129,7 +124,7 @@ namespace FightTest.Controllers
             BuildStates();
             RegisterTransitions();
 
-            _root.Init(_grounded);
+            _root.Init(_ground);
         }
 
         private void FixedUpdate()
@@ -149,8 +144,8 @@ namespace FightTest.Controllers
             if (IsInvulnerable)
             {
                 Debug.Log("invulnerable!");
-                Debug.Log(_grounded.SubMachine.CurrentState == _knockedDown);
-                Debug.Log(_jump.SubMachine.CurrentState == _airKnockedDown);
+                Debug.Log(_ground.SubMachine.CurrentState == _knockedDown);
+                Debug.Log(_airborn.SubMachine.CurrentState == _airKnockedDown);
                 return;
             }
 
@@ -160,16 +155,18 @@ namespace FightTest.Controllers
                 return;
             }
 
-            _mover.ApplyKnockback(_facing.Sign, data.Knockback);
+            _mover.AddForce(new Vector2(-_facing.Sign * data.Knockback.x, data.Knockback.y));
+            _health.TakeDamage(data.Damage);
 
-            if (_root.CurrentState == _jump)
+            _hitStunTimer.Configure(data.EnemyHitStopFrames);
+
+            if (_root.CurrentState == _airborn)
             {
-                _airHitStun.Configure(data.EnemyHitStopFrames);
-                _jump.SubMachine.ChangeState(_airHitStun);
+                _airborn.SubMachine.ChangeState(_airHitStun);
                 return;
             }
 
-            var current = _grounded.SubMachine.CurrentState;
+            var current = _ground.SubMachine.CurrentState;
             var canBlock = IsWalkingBack && current switch
             {
                 _ when current == _walk => data.Height == AttackHeight.Mid || data.Height == AttackHeight.Air,
@@ -180,13 +177,11 @@ namespace FightTest.Controllers
             if (canBlock)
             {
                 _block.Configure(5);
-                _grounded.SubMachine.ChangeState(_block);
+                _ground.SubMachine.ChangeState(_block);
             }
             else
             {
-                _hitStun.Configure(data.EnemyHitStopFrames);
-                _grounded.SubMachine.ChangeState(_hitStun);
-                _health.TakeDamage(data.Damage);
+                _ground.SubMachine.ChangeState(_hitStun);
             }
         }
 
@@ -198,34 +193,28 @@ namespace FightTest.Controllers
             }
 
             _health.TakeDamage(data.Damage);
+            _mover.AddForce(new Vector2(-_facing.Sign * data.Knockback.x, data.Knockback.y));
 
-            if (data.KnockbackY > 0)
+            if (data.Knockback.y > 0 || _root.CurrentState == _airborn)
             {
-                _mover.ApplyLaunch(_facing.Sign, data.Knockback, data.KnockbackY);
-            }
-            else
-            {
-                _mover.ApplyKnockback(_facing.Sign, data.Knockback);
+                _airborn.ConfigureAsLaunched();
             }
 
-            if (data.KnockbackY > 0 || _root.CurrentState == _jump)
+            if (_root.CurrentState == _airborn)
             {
-                _jump.ConfigureAsLaunched();
+                _airborn.SubMachine.ChangeState(_airKnockedDown);
             }
 
-            if (_root.CurrentState == _jump)
+            if (_root.CurrentState == _ground)
             {
-                _jump.SubMachine.ChangeState(_airKnockedDown);
-            }
-
-            if (_root.CurrentState == _grounded)
-            {
-                _grounded.SubMachine.ChangeState(_knockedDown);
+                _ground.SubMachine.ChangeState(_knockedDown);
             }
         }
 
         private void BuildStates()
         {
+            _hitStunTimer = new HitStunTimer();
+
             _idle = new IdleState(_mover, _idleColliders);
             _walk = new WalkState(_mover, _stats.MoveSpeed, _walkColliders);
             _sprint = new SprintState(_mover, _stats.SprintSpeed, _sprintColliders);
@@ -233,8 +222,8 @@ namespace FightTest.Controllers
             _crouch = new CrouchState(_mover, _crouchColliders);
             _crouchWalk = new CrouchWalkState(_mover, _stats.MoveSpeed, _crouchWalkColliders);
             _block = new BlockState(_mover, _blockColliders);
-            _hitStun = new HitStunState(_hitStunColliders);
-            _airHitStun = new HitStunState(_airHitStunColliders);
+            _hitStun = new HitStunState(_hitStunColliders, _hitStunTimer);
+            _airHitStun = new HitStunState(_airHitStunColliders, _hitStunTimer);
             _knockedDown = new KnockedDownState(_knockedDownColliders);
             _airKnockedDown = new AirKnockedDownState(_airKnockedDownColliders);
             _throwAttack = new ThrowAttackState(_stats.ThrowAttack, _throwColliders, _hitLayer, _facing, gameObject);
@@ -255,33 +244,42 @@ namespace FightTest.Controllers
 
             _jumpRise = new JumpRiseState(_jumpRiseColliders);
             _airborne = new AirborneState(_airborneColliders);
-            _grounded = new GroundedState(_idle);
-            _jump = new JumpState(_jumpRise, _mover, _stats.JumpForce);
+            _ground = new GroundState(_idle);
+            _airborn = new AirbornState(_jumpRise, _mover, _stats.JumpForce);
             _root = new StateMachine.StateMachine();
         }
 
         private void RegisterTransitions()
         {
             _root.RegisterTransitions(
-                _grounded,
+                _ground,
                 new Transition(() => IsGrounded && _frame.Jump && !IsGroundSubstateAttack && !IsHitStunned, () =>
                 {
-                    _jump.Configure(_frame.MoveX * _stats.MoveSpeed);
-                    return _jump;
+                    _airborn.Configure(_frame.MoveX * _stats.MoveSpeed);
+                    return _airborn;
                 })
             );
 
             _root.RegisterTransitions(
-                _jump,
+                _airborn,
                 new Transition(() => IsGrounded && _rb.velocity.y <= 0.1f, () =>
                 {
-                    _landKnockedDown = _jump.SubMachine.CurrentState == _airKnockedDown;
-                    _grounded.SubMachine.ChangeState(_idle);
-                    return _grounded;
+                    _landKnockedDown = _airborn.SubMachine.CurrentState == _airKnockedDown;
+
+                    if (_airborn.SubMachine.CurrentState == _airHitStun)
+                    {
+                        _ground.SubMachine.ChangeState(_hitStun);
+                    }
+                    else
+                    {
+                        _ground.SubMachine.ChangeState(_idle);
+                    }
+
+                    return _ground;
                 })
             );
 
-            var groundSm = _grounded.SubMachine;
+            var groundSm = _ground.SubMachine;
 
             groundSm.RegisterTransitions(
                 _idle,
@@ -389,9 +387,9 @@ namespace FightTest.Controllers
                 new Transition(() => _knockedDown.IsFinished, () => _idle)
             );
 
-            var jumpSm = _jump.SubMachine;
+            var airSm = _airborn.SubMachine;
 
-            jumpSm.RegisterTransitions(
+            airSm.RegisterTransitions(
                 _jumpRise,
                 new Transition(() => _rb.velocity.y <= 0f, () => _airborne),
                 new Transition(() => _frame.LightAttack, () => _airLightAttack),
@@ -399,29 +397,29 @@ namespace FightTest.Controllers
                 new Transition(() => _frame.Throw, () => _airThrowAttack)
             );
 
-            jumpSm.RegisterTransitions(
+            airSm.RegisterTransitions(
                 _airborne,
                 new Transition(() => _frame.LightAttack, () => _airLightAttack),
                 new Transition(() => _frame.HeavyAttack, () => _airHeavyAttack),
                 new Transition(() => _frame.Throw, () => _airThrowAttack)
             );
 
-            jumpSm.RegisterTransitions(
+            airSm.RegisterTransitions(
                 _airLightAttack,
                 new Transition(() => _airLightAttack.IsFinished, () => _airborne)
             );
 
-            jumpSm.RegisterTransitions(
+            airSm.RegisterTransitions(
                 _airHeavyAttack,
                 new Transition(() => _airHeavyAttack.IsFinished, () => _airborne)
             );
 
-            jumpSm.RegisterTransitions(
+            airSm.RegisterTransitions(
                 _airThrowAttack,
                 new Transition(() => _airThrowAttack.IsFinished, () => _airborne)
             );
 
-            jumpSm.RegisterTransitions(
+            airSm.RegisterTransitions(
                 _airHitStun,
                 new Transition(() => _airHitStun.IsFinished, () => _airborne)
             );

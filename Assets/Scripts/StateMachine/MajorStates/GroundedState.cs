@@ -2,9 +2,9 @@ using FightTest.StateMachine;
 
 namespace FightTest.States
 {
-    public sealed class GroundedState : ICompositeState
+    public sealed class GroundState : ICompositeState
     {
-        public GroundedState(IState defaultSubState)
+        public GroundState(IState defaultSubState)
         {
             SubMachine.Init(defaultSubState);
         }

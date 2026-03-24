@@ -22,14 +22,10 @@ namespace FightTest.Systems
             _rb.velocity = new Vector2(directionX, force);
         }
 
-        public void ApplyKnockback(float directionX, float force)
+        public void AddForce(Vector2 force)
         {
-            _rb.AddForce(new Vector2(-directionX * force, 0f), ForceMode2D.Impulse);
-        }
-
-        public void ApplyLaunch(float directionX, float forceX, float forceY)
-        {
-            _rb.AddForce(new Vector2(-directionX * forceX, forceY), ForceMode2D.Impulse);
+            _rb.velocity = new Vector2(0f, _rb.velocity.y);
+            _rb.AddForce(force, ForceMode2D.Impulse);
         }
     }
 }
