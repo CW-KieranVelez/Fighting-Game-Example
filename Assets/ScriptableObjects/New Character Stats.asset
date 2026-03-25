@@ -17,7 +17,7 @@ MonoBehaviour:
   SprintSpeed: 5
   BackDashSpeed: 10
   BackDashDuration: 0.2
-  JumpForce: 10
+  JumpForce: 12
   MaxHealth: 100
   ThrowAttack: {fileID: 11400000, guid: c97b76bf14262954ab8f879621ba1593, type: 2}
   LightAttack: {fileID: 11400000, guid: 40d103f77a242c94cb5b7fe09a7d342e, type: 2}

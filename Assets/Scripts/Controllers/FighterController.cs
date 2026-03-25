@@ -43,44 +43,41 @@ namespace FightTest.Controllers
         [Header("Ground Detection")]
         [SerializeField] private GroundDetector _groundDetector;
 
-        // Major states
-        private GroundState _ground;
         private AirbornState _airborn;
-
-        // Ground substates
-        private SimpleState _idle;
-        private MovingState _walk;
-        private MovingState _sprint;
-        private DashState _dash;
-        private SimpleState _crouch;
-        private MovingState _crouchWalk;
-        private BlockStunState _block;
-        private BlockStunState _crouchBlock;
-        private HitStunState _hitStun;
-        private KnockedDownState _knockedDown;
-        private AttackState _lightAttack;
-        private AttackState _heavyAttack;
-        private ThrowAttackState _throwAttack;
-        private AttackState _crouchLightAttack;
-        private AttackState _crouchHeavyAttack;
-
-        // Air substates
-        private SimpleState _jumpRise;
         private SimpleState _airborne;
+        private AttackState _airHeavyAttack;
         private HitStunState _airHitStun;
         private KnockedDownState _airKnockedDown;
         private AttackState _airLightAttack;
-        private AttackState _airHeavyAttack;
         private ThrowAttackState _airThrowAttack;
-
-        private HitStunTimer _hitStunTimer;
-        private StateMachine.StateMachine _root;
-        private IInputProvider _inputProvider;
-        private CharacterHealth _health;
-        private Rigidbody2D _rb;
+        private BlockStunState _block;
+        private SimpleState _crouch;
+        private BlockStunState _crouchBlock;
+        private AttackState _crouchHeavyAttack;
+        private AttackState _crouchLightAttack;
+        private MovingState _crouchWalk;
+        private DashState _dash;
 
         private InputFrame _frame;
-        private bool _landKnockedDown;
+
+        // Major states
+        private GroundState _ground;
+        private AttackState _heavyAttack;
+        private HitStunState _hitStun;
+
+        // Ground substates
+        private SimpleState _idle;
+        private IInputProvider _inputProvider;
+
+        // Air substates
+        private SimpleState _jumpRise;
+        private KnockedDownState _knockedDown;
+        private AttackState _lightAttack;
+        private Rigidbody2D _rb;
+        private StateMachine.StateMachine _root;
+        private MovingState _sprint;
+        private ThrowAttackState _throwAttack;
+        private MovingState _walk;
 
         private bool IsGrounded => _groundDetector != null && _groundDetector.IsGrounded;
         private bool IsWalkingBack => _frame.MoveX * _facing.Sign < 0f;
@@ -107,20 +104,40 @@ namespace FightTest.Controllers
             get
             {
                 if (_root.CurrentState == _ground)
+                {
                     return _ground.SubMachine.CurrentState == _knockedDown;
+                }
+
                 if (_root.CurrentState == _airborn)
+                {
                     return _airborn.SubMachine.CurrentState == _airKnockedDown;
+                }
+
                 return false;
             }
         }
 
+        // Exposed for HitHandler — state queries
+        public bool QueryIsInvulnerable => IsInvulnerable;
+        public bool QueryIsAirborne => IsAirborne;
+        public bool QueryIsWalkingBack => IsWalkingBack;
+        public bool QueryIsInWalkState => _ground.SubMachine.CurrentState == _walk;
+        public bool QueryIsInCrouchState => _ground.SubMachine.CurrentState == _crouch;
+
+        // Exposed for HitHandler — dependencies
+        public CharacterHealth Health { get; private set; }
+
+        public CharacterMover Mover => _mover;
+        public FacingSystem Facing => _facing;
+        public HitStunTimer HitStunTimer { get; private set; }
+
         private void Awake()
         {
             _rb = GetComponent<Rigidbody2D>();
-            _health = GetComponent<CharacterHealth>();
+            Health = GetComponent<CharacterHealth>();
             _inputProvider = _inputProviderBehaviour as IInputProvider;
 
-            _health.Init(_stats.MaxHealth);
+            Health.Init(_stats.MaxHealth);
 
             BuildStates();
             RegisterTransitions();
@@ -140,22 +157,16 @@ namespace FightTest.Controllers
             _root.Tick();
         }
 
-        // Exposed for HitHandler — state queries
-        public bool QueryIsInvulnerable => IsInvulnerable;
-        public bool QueryIsAirborne => IsAirborne;
-        public bool QueryIsWalkingBack => IsWalkingBack;
-        public bool QueryIsInWalkState => _ground.SubMachine.CurrentState == _walk;
-        public bool QueryIsInCrouchState => _ground.SubMachine.CurrentState == _crouch;
-
-        // Exposed for HitHandler — dependencies
-        public CharacterHealth Health => _health;
-        public CharacterMover Mover => _mover;
-        public FacingSystem Facing => _facing;
-        public HitStunTimer HitStunTimer => _hitStunTimer;
-
         // Exposed for HitHandler — transition callbacks
-        public void OnGroundHit() => _ground.SubMachine.ChangeState(_hitStun);
-        public void OnAirHit() => _airborn.SubMachine.ChangeState(_airHitStun);
+        public void OnGroundHit()
+        {
+            _ground.SubMachine.ChangeState(_hitStun);
+        }
+
+        public void OnAirHit()
+        {
+            _airborn.SubMachine.ChangeState(_airHitStun);
+        }
 
         public void OnGroundBlock(int duration)
         {
@@ -171,15 +182,25 @@ namespace FightTest.Controllers
 
         public void OnThrowLaunch(bool shouldLaunch)
         {
-            if (shouldLaunch) _airborn.ConfigureAsLaunched();
-            if (IsAirborne) _airborn.SubMachine.ChangeState(_airKnockedDown);
+            if (shouldLaunch)
+            {
+                _airborn.ConfigureAsLaunched();
+            }
+
+            if (IsAirborne)
+            {
+                _airborn.SubMachine.ChangeState(_airKnockedDown);
+            }
         }
 
-        public void OnGroundKnockdown() => _ground.SubMachine.ChangeState(_knockedDown);
+        public void OnGroundKnockdown()
+        {
+            _ground.SubMachine.ChangeState(_knockedDown);
+        }
 
         private void BuildStates()
         {
-            _hitStunTimer = new HitStunTimer();
+            HitStunTimer = new HitStunTimer();
 
             _idle = new SimpleState(_idleColliders);
             _crouch = new SimpleState(_crouchColliders);
@@ -191,12 +212,12 @@ namespace FightTest.Controllers
             _crouchWalk = new MovingState(_mover, _stats.MoveSpeed, _crouchWalkColliders);
 
             _dash = new DashState(_mover, _stats.BackDashSpeed, _stats.BackDashDuration, _dashColliders);
-            _block = new BlockStunState(_mover, _blockColliders);
-            _crouchBlock = new BlockStunState(_mover, _crouchBlockColliders);
-            _hitStun = new HitStunState(_hitStunColliders, _hitStunTimer);
-            _airHitStun = new HitStunState(_airHitStunColliders, _hitStunTimer);
-            _knockedDown = new KnockedDownState(_knockedDownColliders, durationTicks: 30);
-            _airKnockedDown = new KnockedDownState(_airKnockedDownColliders, durationTicks: 0);
+            _block = new BlockStunState(_blockColliders);
+            _crouchBlock = new BlockStunState(_crouchBlockColliders);
+            _hitStun = new HitStunState(_hitStunColliders, HitStunTimer);
+            _airHitStun = new HitStunState(_airHitStunColliders, HitStunTimer);
+            _knockedDown = new KnockedDownState(_knockedDownColliders,75);
+            _airKnockedDown = new KnockedDownState(_airKnockedDownColliders, 0);
 
             _throwAttack = new ThrowAttackState(_stats.ThrowAttack, _throwColliders, _hitLayer, gameObject);
             _airThrowAttack = new ThrowAttackState(_stats.ThrowAttack, _airThrowColliders, _hitLayer, gameObject);
@@ -233,9 +254,11 @@ namespace FightTest.Controllers
                 _airborn,
                 new Transition(() => IsGrounded && _rb.velocity.y <= 0.1f, () =>
                 {
-                    _landKnockedDown = _airborn.SubMachine.CurrentState == _airKnockedDown;
+                    var airSubState = _airborn.SubMachine.CurrentState;
 
-                    if (_airborn.SubMachine.CurrentState == _airHitStun)
+                    if (airSubState == _airKnockedDown)
+                        _ground.SubMachine.ChangeState(_knockedDown);
+                    else if (airSubState == _airHitStun)
                         _ground.SubMachine.ChangeState(_hitStun);
                     else
                         _ground.SubMachine.ChangeState(_idle);
@@ -248,12 +271,6 @@ namespace FightTest.Controllers
 
             groundSm.RegisterTransitions(
                 _idle,
-                new Transition(() =>
-                {
-                    if (!_landKnockedDown) return false;
-                    _landKnockedDown = false;
-                    return true;
-                }, () => _knockedDown),
                 new Transition(() => _frame.BackDash && IsWalkingBack, () => _dash),
                 new Transition(
                     () => _frame.MoveX != 0f && _frame is { Duck: false, LightAttack: false, HeavyAttack: false },

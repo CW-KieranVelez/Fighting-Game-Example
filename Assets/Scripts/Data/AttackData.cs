@@ -21,6 +21,8 @@ namespace FightTest.Data
         public int ActiveFrames = 3;
         public int RecoveryFrames = 8;
         public int EnemyHitStopFrames = 4;
+        public int EnemyBlockStunFrames = 8;
+        public Vector2 BlockKnockback;
 
         [Header("Lunge")]
         public Vector2 LungeForce;
@@ -28,7 +30,7 @@ namespace FightTest.Data
 
         [Header("Knockback")]
         public Vector2 Knockback;
-        public bool Launches;
+        public bool KnocksDown;
 
         [Header("Damage")]
         public int Damage = 5;

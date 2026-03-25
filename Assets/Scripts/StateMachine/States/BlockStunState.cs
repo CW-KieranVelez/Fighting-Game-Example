@@ -6,12 +6,10 @@ namespace FightTest.States
     public sealed class BlockStunState : IState
     {
         private readonly ColliderSet _colliders;
-        private readonly CharacterMover _mover;
         private int _remainingTicks;
 
-        public BlockStunState(CharacterMover mover, ColliderSet colliders)
+        public BlockStunState(ColliderSet colliders)
         {
-            _mover = mover;
             _colliders = colliders;
         }
 
@@ -19,7 +17,6 @@ namespace FightTest.States
 
         public void Enter()
         {
-            _mover.Stop();
             _colliders.EnableSet();
             IsFinished = false;
         }

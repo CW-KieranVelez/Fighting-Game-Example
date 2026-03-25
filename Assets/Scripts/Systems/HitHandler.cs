@@ -20,19 +20,17 @@ namespace FightTest.Systems
                 return;
             }
 
-            if (data.Launches)
+            if (data.KnocksDown)
             {
                 ReceiveThrow(data);
                 return;
             }
 
-            _controller.Mover.AddForce(new Vector2(-_controller.Facing.Sign * data.Knockback.x, data.Knockback.y));
-            _controller.Health.TakeDamage(data.Damage);
-            _controller.HitStunTimer.Configure(data.EnemyHitStopFrames);
 
             if (_controller.QueryIsAirborne)
             {
                 _controller.OnAirHit();
+                TakeDamage(data);
                 return;
             }
 
@@ -40,16 +38,21 @@ namespace FightTest.Systems
             {
                 if (_controller.QueryIsInCrouchState)
                 {
-                    _controller.OnCrouchBlock(5);
+                    _controller.OnCrouchBlock(data.EnemyBlockStunFrames);
                 }
                 else
                 {
-                    _controller.OnGroundBlock(5);
+                    _controller.OnGroundBlock(data.EnemyBlockStunFrames);
                 }
+
+                _controller.Mover.AddForce(
+                    new Vector2(-_controller.Facing.Sign * data.BlockKnockback.x, data.BlockKnockback.y)
+                );
             }
             else
             {
                 _controller.OnGroundHit();
+                TakeDamage(data);
             }
         }
 
@@ -70,6 +73,13 @@ namespace FightTest.Systems
             {
                 _controller.OnGroundKnockdown();
             }
+        }
+
+        private void TakeDamage(AttackData data)
+        {
+            _controller.Mover.AddForce(new Vector2(-_controller.Facing.Sign * data.Knockback.x, data.Knockback.y));
+            _controller.Health.TakeDamage(data.Damage);
+            _controller.HitStunTimer.Configure(data.EnemyHitStopFrames);
         }
 
         private bool CanBlock(AttackData data)

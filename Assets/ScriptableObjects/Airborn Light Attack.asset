@@ -17,8 +17,10 @@ MonoBehaviour:
   ActiveFrames: 3
   RecoveryFrames: 12
   EnemyHitStopFrames: 18
+  EnemyBlockStunFrames: 8
+  BlockKnockback: {x: 2, y: 0}
   LungeForce: {x: 0, y: 0}
   LungeFrame: 0
   Knockback: {x: 4, y: 0}
-  Launches: 0
+  KnocksDown: 0
   Damage: 8
